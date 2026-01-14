@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Spatie\Permission\Models\Permission;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, Notifiable, SoftDeletes, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -22,6 +24,23 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'photo',
+        'gender',
+        'apellidos',
+        'telefono',
+        'calle',
+        'colonia',
+        'ciudad',
+        'estado',
+        'no_ext',
+        'no_int',
+        'rfc',
+        'curp',
+        'genero',
+        'estado_civil',
+        'almacen',
+        'username',
+        'path_photo'
     ];
 
     /**
