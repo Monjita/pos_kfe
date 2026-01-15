@@ -15,4 +15,26 @@ Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
 
+//auth
+Route::view('auth/noRole', 'auth.noRole')
+    ->middleware(['auth', 'verified'])
+    ->name('auth.noRole');
+
+//Ventas
+Route::view('ventas/index', 'ventas.index')
+    ->middleware(['auth', 'verified'])
+    ->name('ventas.index');
+
+//Inventario
+Route::middleware('auth')->group(function () { 
+    Route::view('inventario/index', 'inventario.index')->name('inventario.index');
+    Route::view('producto/create', 'inventario.producto.create')->name('producto.create');
+    Route::view('producto/edit', 'inventario.producto.edit')->name('producto.edit');
+});
+
+//Estadisticas
+Route::view('estadisticas/index', 'estadisticas.index')
+    ->middleware(['auth', 'verified'])
+    ->name('estadisticas.index');
+
 require __DIR__.'/auth.php';
