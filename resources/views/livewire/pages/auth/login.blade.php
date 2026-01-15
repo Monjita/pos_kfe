@@ -20,8 +20,24 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        // $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+
+        $user = auth()->user();
+        $role = $user->getRoleNames()->first(); //para 1 rol por usuario
+
+        switch ($role) {
+            case 'SuperAdmin' || 'Admin':
+                $this->redirect(route('estadisticas.index', absolute: false), navigate: true);
+                break;
+            case 'Ventas':
+                $this->redirect(route('ventas.index', absolute: false), navigate: true);
+                break;
+            default:
+                $this->redirect(route('auth.noRole', absolute: false), navigate: true);
+                break;
+        }
     }
+
 }; ?>
 
 <div>
