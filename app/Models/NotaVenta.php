@@ -79,6 +79,10 @@ class NotaVenta extends Model
 
     protected $dates = ['fechaelab','fecha_doc','fecha_ent'];
 
+    protected $casts = [
+        'fechaelab' => 'datetime',
+    ];
+
     public function cliente(){
         return $this->belongsTo('App\Models\Cliente','cve_cliente','id');
     }
@@ -102,19 +106,19 @@ class NotaVenta extends Model
         return $this->belongsTo('App\Models\User', 'cve_vend', 'id');
     }
 
-    // public function getFormaPagoAttribute()
-    // {
-    //     $referencia = $this->serie . str_pad($this->folio, 5, 0, STR_PAD_LEFT);
-    //     $pago = \App\Models\CuentaXCobrarDet::where('refer', $referencia)
-    //         ->where('signo', -1)
-    //         ->whereNotNull('num_cpto')
-    //         ->first();
+    public function getFormaPagoAttribute()
+    {
+        $referencia = $this->serie . str_pad($this->folio, 5, 0, STR_PAD_LEFT);
+        $pago = \App\Models\CuentaXCobrarDet::where('refer', $referencia)
+            ->where('signo', -1)
+            ->whereNotNull('num_cpto')
+            ->first();
         
-    //     if ($pago && !empty($pago->num_cpto)) {
-    //         $concepto = \App\Models\ConceptoC::where('num_cpto', $pago->num_cpto)->first();
-    //         return $concepto ? $concepto->descr : null;
-    //     }
+        if ($pago && !empty($pago->num_cpto)) {
+            $concepto = \App\Models\ConceptoC::where('num_cpto', $pago->num_cpto)->first();
+            return $concepto ? $concepto->descr : null;
+        }
         
-    //     return null;
-    // }
+        return null;
+    }
 }

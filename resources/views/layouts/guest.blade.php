@@ -19,6 +19,11 @@
             <div>
                 <a href="/" wire:navigate>
                     <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
+                    {{-- @if(file_exists(public_path("storage/images/logo_empresa.jpg")))
+                        <img src="{{ asset("storage/images/logo_empresa.jpg") }}" class="w-32 h-32 fill-current text-gray-500" />
+                    @else
+                        <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
+                    @endif --}}
                 </a>
             </div>
 
