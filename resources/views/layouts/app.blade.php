@@ -35,5 +35,6 @@
             </main>
         </div>
         @livewireScripts
+        @stack('js')
     </body>
 </html>

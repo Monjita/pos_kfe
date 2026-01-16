@@ -8,6 +8,8 @@ use Livewire\WithPagination;
 new class extends Component {
     use WithPagination;
     protected $paginationTheme = 'tailwind';
+
+    protected $listeners = [ 'eliminarProducto', 'desactivarProducto'];
     
     public function render(): mixed
     {
@@ -17,6 +19,17 @@ new class extends Component {
                 ->paginate(10),
         ]);
     }
+
+    public function eliminarProducto($claveProducto){
+        $producto = Producto::where('clave','=',$claveProducto)->first();
+        $producto->delete();
+    }
+
+    public function desactivarProducto($claveProducto){
+            $producto = Producto::where('clave','=',$claveProducto)->first();
+            $producto->status = ($producto->status == 'A') ? 'B' : 'A';
+            $producto->save();
+    }
 }; ?>
 
 <div class="">
@@ -25,7 +38,7 @@ new class extends Component {
             <thead class="bg-gray-100">
                 <tr class="text-base font-medium text-body">
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
-                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th>
+                    {{-- <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Unidad</th> --}}
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -38,17 +51,16 @@ new class extends Component {
                         <td class="w-40 py-2 px-6 whitespace-nowrap text-sm text-gray-900">
                             <div class="flex">
                                 <div class="w-auto">
-                                    <div class="image-fit zoom-in mr-2 h-10 w-10">
+                                    <div class="mr-2 mt-1 h-10 w-10 flex justify-center items-center">
                                         @if ($producto->imagen && file_exists(public_path("storage/images/$producto->imagen")))
-                                            <div class="flex justify-center w-full mr-5">
-                                                <img alt="{{ $producto->nombre }}" class="border-2 border-blue-500 rounded-full" src="{{ asset("storage/images/$producto->imagen") }}">
+                                            <div class="flex justify-center items-center w-full h-full">
+                                                <img alt="{{ $producto->nombre }}" 
+                                                    class="w-10 h-10 rounded-full border-2 border-blue-500 object-cover transition-transform duration-300 hover:scale-110" 
+                                                    src="{{ asset("storage/images/$producto->imagen") }}">
                                             </div>
                                         @else
-                                            <div class="text-center">
-                                                <div class="border-2 border-blue-500 rounded-full w-10 h-10 flex justify-center items-center">
-                                                    {{-- <i class="far fa-box-open fa-2x text-gray-400 rounded-full mt-2"></i> --}}
-                                                    <i class="fa-solid fa-exclamation"></i>
-                                                </div>
+                                            <div class="flex justify-center items-center w-10 h-10 rounded-full border-2 border-blue-500 bg-gray-100 text-blue-500">
+                                                <i class="fa-solid fa-exclamation"></i>
                                             </div>
                                         @endif
                                     </div>
@@ -60,16 +72,16 @@ new class extends Component {
 
                             </div>
                         </td>
-                        <td class="text-center px-6 whitespace-nowrap text-sm text-gray-900">
+                        {{-- <td class="text-center px-6 whitespace-nowrap text-sm text-gray-900">
                             {{ $producto->unidades->clave ?? 'NA'}}
+                        </td> --}}
+                        <td class="text-center px-6 whitespace-nowrap text-sm text-gray-900">
+                            $ {{ number_format($producto->precios->first()->precio,2,'.',',') }}
+                            {{-- $ 123.00 --}}
                         </td>
                         <td class="text-center px-6 whitespace-nowrap text-sm text-gray-900">
-                            {{-- $ {{ number_format($producto->precios->first()->precio,2,'.',',') }} --}}
-                            $ 123.00
-                        </td>
-                        <td class="text-center px-6 whitespace-nowrap text-sm text-gray-900">
-                            {{-- {{ $producto->stock->sum('exist') }} --}}
-                            10
+                            {{ $producto->stock->sum('exist') }}
+                            {{-- 10 --}}
                         </td>
                         <td class="text-center px-6 whitespace-nowrap text-sm text-gray-900">
                             <i class="fa-solid fa-circle {{ $producto->status == 'A' ? 'text-green-500' : 'text-red-500' }} fa-xs"></i>
@@ -93,7 +105,7 @@ new class extends Component {
                                 {{-- @if(auth()->user()->can('inventario->producto->editar')) --}}
                                     <div class="relative flex items-center group justify-center mx-1">
                                         {{-- <a class="btn btn-sm btn-outline-sucursal {{ $producto->status == 'A' ? 'text-success' : 'text-danger' }} {{ $producto->status == 'A' ? 'hover:bg-lime-100' : 'hover:bg-red-100' }}  mx-1" onclick="modalDesactProd('{{ $producto->clave }}', '{{ $producto->nombre }}', '{{ $producto->status }}')"> --}}
-                                        <button class="text-sm text-opacity-100 border border-transparent {{ $producto->status == 'A' ? 'text-green-500 hover:bg-lime-100' : 'text-red-500 hover:bg-red-100' }} font-bold py-2 px-2 rounded-lg"  onclick="modalEliminarProducto('{{ $producto->clave }}', '{{ $producto->nombre }}')">
+                                        <button class="text-sm text-opacity-100 border border-transparent {{ $producto->status == 'A' ? 'text-green-500 hover:bg-lime-100' : 'text-red-500 hover:bg-red-100' }} font-bold py-2 px-2 rounded-lg"  onclick="modalDesactProd('{{ $producto->clave }}', '{{ $producto->nombre }}', '{{ $producto->status }}')">
                                             <div class="z-0">
                                                 <i class="fa-solid {{ $producto->status == 'A' ? 'fa-toggle-on' : 'fa-toggle-off' }} fa-lg "></i>
                                             </div>
@@ -142,3 +154,47 @@ new class extends Component {
         </div>
     </div>
 </div>
+
+@push('js')
+    <script>
+        function modalDesactProd(clave,nombre,status){
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: status=='A' ? 'Desactivar ' + nombre : 'Activar ' + nombre,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: status=='A' ? 'Sí, desactivar' : 'Sí, activar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // window.livewire.emit('desactivarProducto',  claveProducto);
+                      Livewire.dispatch('desactivarProducto', {
+                            claveProducto: clave
+                        })
+                }
+            })
+        }
+
+        function modalEliminarProducto(clave,nombre){
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: 'Eliminar ' + nombre,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                      Livewire.dispatch('eliminarProducto', {
+                            claveProducto: clave
+                        })
+                }
+            })
+        }
+
+    </script>
+@endpush

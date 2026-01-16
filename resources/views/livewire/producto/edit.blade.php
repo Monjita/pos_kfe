@@ -3,21 +3,20 @@
 use Livewire\Volt\Component;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Producto;
-// use Livewire\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Illuminate\Support\Facades\DB;
-use App\Models\Almacen;
-use App\Models\Unidad;
 use App\Models\ListaPrecios;
-use App\Models\AlmacenProducto;
 use App\Models\ProductoPrecios;
 use App\Models\ProductoImpuesto;
+use App\Models\Almacen;
+use App\Models\AlmacenProducto;
 
 new class extends Component {
     use WithFileUploads;
     public ?TemporaryUploadedFile $image = null;
-
+    public $imagenProducto = null;
+    public Producto $producto;
     public string $clave = '';
     public string $nombre = '';
     public string $marca = '';
@@ -25,7 +24,6 @@ new class extends Component {
     public string $categoria = '';
     public $unidad = 1;
     public $imp_iva = '0.160000';
-    public $seguimiento;
     public $imp_ieps = '';
 
     public $tasa_iva = '0.160000';
@@ -36,27 +34,49 @@ new class extends Component {
 
     public $precios = [];
     public $stock = 0;
-    public $composicion;
-    public $nombreComposicion;
-    public $sugerencias;
+    public $porcentajePrecios = [];
     public $costoCompra = null;
 
-    public function mount()
+    public function mount(int $id): void
     {
-        $preciosActivos = ListaPrecios::where('status', 'A')->pluck('id')->toArray();
-        $this->precios = array_fill_keys($preciosActivos, 0);
+        $this->producto = $producto = Producto::findOrFail($id);
+        $this->clave = $producto->clave;
+        $this->nombre = $producto->nombre;
+        $this->marca = $producto->marca;
+        $this->linea = $producto->linea;
+        $this->categoria = $producto->categoria;
+        $this->imagenProducto = $producto->imagen;
+        $this->costeo = $producto->tipo_costeo;
+        $almacen = Almacen::find(1); //Almacen principal
+        $almacenProducto = AlmacenProducto::where('cve_alm', $almacen->id)
+                                ->where('cve_prod', $producto->id)
+                                ->first();
+        $this->stock = $almacenProducto ? $almacenProducto->exist : 0;
+
+        foreach ($producto->precios as $item) {
+            $this->porcentajePrecios[$item->cve_precio] = $item->porcentaje_precio;
+            $this->precios[$item->cve_precio] = $item->precio;
+        }
+    }
+
+      public function cambioPrecio($lista_id, $porcentaje){
+        $valor = isset($porcentaje) && is_numeric($porcentaje) ? floatval($porcentaje) : 0;
+        if($valor >= 0 && $porcentaje <= 100){
+            $this->porcentajePrecios[$lista_id] = $valor;
+            $this->precios[$lista_id] = number_format((float)($this->costoCompra + ($this->costoCompra * ($valor / 100))), 2, '.', '');
+        }
+        else{
+            $valor = 0;
+            $this->porcentajePrecios[$lista_id] = $valor;
+            $this->precios[$lista_id] = number_format((float)($this->costoCompra + ($this->costoCompra * ($valor / 100))), 2, '.', '');
+        }
     }
 
     public function save(){
         $this->validate([
-                'clave' => 'required|regex:/^[a-zA-Z0-9\-\/]+$/|unique:producto,clave,NULL,id,deleted_at,NULL',
+                'clave' => 'required|regex:/^[a-zA-Z0-9\-\/]+$/|unique:producto,clave,' . $this->producto->id . ',id,deleted_at,NULL',
                 'nombre' => 'required|string|max:255',
                 'precios.*' => 'required|numeric',
-                // 'image' => 'image|max:1024', // máximo 1MB
-                // 'costo' => 'numeric',
-                // 'marca' => 'required|string|max:255',
-                // 'linea' => 'required|string|max:255',
-                // 'categoria' => 'required|string|max:255',
              ],[
                 'clave.required' => 'La clave es obligatoria.',
                 'clave.unique' => 'La clave ya existe.',
@@ -71,80 +91,62 @@ new class extends Component {
                 $nombreFoto = uniqid() . '.' . $this->image->getClientOriginalExtension();
                 $this->image->storeAs('images', $nombreFoto, 'public');
             }
+            
             DB::beginTransaction();
-            $producto = Producto::create([
+
+            $this->producto->update([
                 'clave' => $this->clave,
                 'nombre' => $this->nombre,
-                'marca' => $this->marca,
-                'linea' => $this->linea,
                 'categoria' => $this->categoria,
+                'linea' => $this->linea,
+                'marca' => $this->marca,
                 'tipo_costeo' => $this->costeo,
-                'usuario' => Auth::id(),
-                'imagen' => $nombreFoto ?? null
+                'imagen' => isset($nombreFoto) ? $nombreFoto : $this->imagenProducto,
             ]);
-            $producto->save();
 
-            $nuevoProductoImpuesto = new ProductoImpuesto([
-                    'cve_prod' => $producto->id,
-                    'iva' => $this->tasa_iva,
-                    'factor_ieps' => $this->factor_ieps,
-                    'tasa_ieps' => $this->factor_ieps == 'Tasa' ? $this->tasa_ieps : null,
-                    'cuota_ieps' => $this->factor_ieps == 'Cuota' ? $this->cuota_ieps : null,
-                ]);
-            $nuevoProductoImpuesto->save();
+            $this->producto->impuestos->update([
+                'iva' => $this->tasa_iva,
+                'factor_ieps' => $this->factor_ieps,
+                'tasa_ieps' => $this->factor_ieps == 'Tasa' ? $this->tasa_ieps : NULL,
+                'cuota_ieps' => $this->factor_ieps == 'Cuota' ? $this->cuota_ieps : NULL,
+            ]);
 
-            // Crea los precios para cada lista de precios
             foreach ($this->precios as $key => $value) {
-                $precio = new ProductoPrecios([
-                    'cve_prod' => $producto->id,
-                    'cve_precio' => $key,
-                    'precio' => $value,
-                ]);
-                $precio->save();
+                $this->producto->precios()
+                ->where('cve_precio', $key)
+                ->where('cve_prod', $this->producto->id)
+                ->update(['precio' => $value,
+                            'porcentaje_precio' => $this->porcentajePrecios[$key] ?? 0,
+                        ]);
             }
+            $almacen = Almacen::find(1); //Almacen principal
+            $almacenProducto = AlmacenProducto::where('cve_alm', $almacen->id)
+                                    ->where('cve_prod', $this->producto->id)
+                                    ->first();
 
-            // Crea el producto en cada almacen con existencias 0
-            $almacenIds = Almacen::pluck('id')->toArray();
-
-            $recordsToInsert = [];
-
-            foreach ($almacenIds as $almacenId) {
-                $recordsToInsert[] = [
-                    'cve_prod' =>  $producto->id,
-                    'cve_alm' => $almacenId,
-                    'exist' => $this->stock,
-                ];
-            }
-
-            if (!empty($recordsToInsert)) {
-                AlmacenProducto::insert($recordsToInsert);
-            }
+            $almacenProducto->update([
+                'exist' => $this->stock,
+            ]);
 
             DB::commit();
-            $preciosActivos = ListaPrecios::where('status', 'A')->pluck('id')->toArray();
-            $this->precios = array_fill_keys($preciosActivos,0);
-
             // $this->redirect(route('inventario.index', absolute: false), navigate: true);
             $this->dispatch('exito', []);
         }catch (\PDOException $e) {
             DB::rollBack();
             $this->dispatch('error', []);
             $this->addError('db', $e->getMessage());
+
         }
     }
 
     public function render(): mixed
     {
-        return view('livewire.producto.create', [
-            // 'categorias' => Categoria::get(),
-            // 'lineas' => Linea::get(),
-            // 'marcas' => Marca::get(),
-            // 'unidades_medida' => Unidad::get(),
+        return view('livewire.producto.edit', [
             'lista_precios' => ListaPrecios::where('status','A')->get(),
         ]);
     }
-
 }; ?>
+
 
 <div>
     <div class="sm:flex sm:flex-row w-full sm:gap-x-5">
@@ -239,7 +241,6 @@ new class extends Component {
                                             </th>
 
                                             @if($costoCompra)
-                                                {{-- Porcentaje --}}
                                                 <td class="px-2 py-1">
                                                     <input type="number" min="0" max="100"
                                                         id="porcentajePrecios_{{ $item->id }}"
@@ -253,7 +254,6 @@ new class extends Component {
                                                     @enderror
                                                 </td>
 
-                                                {{-- Precio --}}
                                                 <td class="px-2 py-1">
                                                     <input type="number"
                                                         id="precio_{{ $item->id }}"
@@ -267,7 +267,6 @@ new class extends Component {
                                                     @enderror
                                                 </td>
                                             @else
-                                                {{-- Solo precio editable --}}
                                                 <td class="px-2 py-1">
                                                     <input type="text"
                                                         id="precio_{{ $item->id }}"
@@ -291,10 +290,6 @@ new class extends Component {
 
             </div>
 
-            {{-- <div class="px-2 flex flex-col sm:flex-row w-full sm:gap-x-5 mt-2">
-                //
-            </div> --}}
-
         </div>
 
         <div class="flex flex-col justify-start sm:w-1/3 mt-4 sm:mt-0 align-top">
@@ -302,12 +297,12 @@ new class extends Component {
                 <div class="font-medium text-center text-base mr-auto">Imagen del producto</div>
             </div>
 
-            @if($image)
+            @if($image || $imagenProducto)
                 <div class="flex justify-center w-full my-2 mr-5">
                     <div class="flex px-5 items-center">
                         <div class="border-2 border-dashed shadow-sm border-slate-300 rounded-md py-5 px-10">
                             <div class="relative w-32 h-32 flex overflow-hidden">
-                                <img alt="Foto de perfil" src="{{ $image->temporaryUrl() }}" class="w-full h-full object-cover rounded-full border-2 border-blue-500">
+                                <img alt="Foto de perfil" src="{{ $image != null ? $image->temporaryUrl() : asset('storage/images/' . $imagenProducto) }}" class="w-full h-full object-cover rounded-full border-2 border-blue-500">
                             </div>
                             <div class="mx-auto relative mt-5 text-center">
                                 <label class="inline-flex items-center cursor-pointer text-xs font-bold bg-blue-700 hover:bg-blue-500 text-white py-2 px-3 rounded-lg">
@@ -321,6 +316,8 @@ new class extends Component {
                         </div>
                     </div>
                 </div>
+            {{-- @elseif ($imagenProducto) --}}
+
             @else
                 <div class="flex justify-center w-full my-2 mr-5">
                     <div class="flex px-5 items-center">

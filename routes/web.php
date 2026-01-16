@@ -29,7 +29,8 @@ Route::view('ventas/index', 'ventas.index')
 Route::middleware('auth')->group(function () { 
     Route::view('inventario/index', 'inventario.index')->name('inventario.index');
     Route::view('producto/create', 'inventario.producto.create')->name('producto.create');
-    Route::view('producto/edit', 'inventario.producto.edit')->name('producto.edit');
+    Route::view('producto/edit/{productoId}', 'inventario.producto.edit')->name('producto.edit');
+
 });
 
 //Estadisticas
