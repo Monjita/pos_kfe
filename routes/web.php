@@ -25,6 +25,11 @@ Route::view('ventas/index', 'ventas.index')
     ->middleware(['auth', 'verified'])
     ->name('ventas.index');
 
+Route::middleware('auth')->group(function () { 
+    Route::view('ventas/index', 'ventas.index')->name('ventas.index');
+    Route::view('notaVenta/create', 'ventas.notaVenta.create')->name('notaVenta.create');
+});
+
 //Inventario
 Route::middleware('auth')->group(function () { 
     Route::view('inventario/index', 'inventario.index')->name('inventario.index');
